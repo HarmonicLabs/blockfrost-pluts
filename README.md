@@ -39,10 +39,9 @@ the provider can be used with the transaction builder to get a `TxBuilderRunner`
 
 ```ts
 import { TxBuilder, defaultProtocolParameters } from "@harmoniclabs/plu-ts";
+import { BlockfrostPluts } from "@harmoniclabs/blockfrost-pluts";
 
 const txBuilder = new TxBuilder( defaultProtocolParameters );
-
-import { BlockfrostPluts } from "@harmoniclabs/blockfrost-pluts";
 
 const provider = new BlockfrostPluts({
     projectId: "YOUR API KEY HERE", // see: https://blockfrost.io
