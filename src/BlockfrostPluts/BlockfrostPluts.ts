@@ -1,9 +1,9 @@
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
 import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/plu-ts-offchain";
-import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParamters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, StakeAddressBech32, StakeCredentials, AddressStr } from "@harmoniclabs/cardano-ledger-ts";
+import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParamters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, StakeAddressBech32, StakeCredentials, AddressStr, Hash28 } from "@harmoniclabs/cardano-ledger-ts";
 
 import { BlockfrostOptions } from "./BlockfrostOptions";
-import { dataFromCbor } from "@harmoniclabs/plutus-data";
+import { Data, dataFromCbor } from "@harmoniclabs/plutus-data";
 import { Cbor, CborBytes, CborPositiveRational } from "@harmoniclabs/cbor";
 import { fromHex, toHex } from "@harmoniclabs/uint8array-utils";
 import { blake2b_224 } from "@harmoniclabs/crypto";
@@ -24,6 +24,14 @@ function forceTxOutRefStr( canResolve: CanResolveToUTxO ): TxOutRefStr
     console.error( canResolve );
     throw new Error('"forceTxOutRefStr" expects a "CanResolveToUTxO"');
 }
+
+export type PaginationOptions = {
+    count?: number;
+    page?: number;
+    order?: 'asc' | 'desc';
+};
+
+export type UTxOWithRefScriptHash = UTxO & { readonly refScriptHash?: Hash28 }
 
 export class BlockfrostPluts
     implements ITxRunnerProvider, ISubmitTx, IGetProtocolParameters
@@ -127,60 +135,10 @@ export class BlockfrostPluts
 
                 if( !resolved ) throw new Error("unresolved utxo: " + ref.toString() );
 
-                let refScript: Script | undefined = undefined;
-                if( resolved.reference_script_hash )
-                {
-                    const res = await this.api.scriptsCbor( resolved.reference_script_hash );
-                    if( !res.cbor )
-                    {
-                        throw new Error(
-                            `unresolved reference script with hash "${resolved.reference_script_hash}" for utxo "${ref.toString()}"`
-                        );
-                    }
-                    const cbor = Cbor.parse( res.cbor );
-
-                    if( cbor instanceof CborBytes )
-                    {
-                        const scriptCbor = cbor.buffer;
-                        const v1Hash = toHex(
-                            blake2b_224(
-                                new Uint8Array(
-                                    [
-                                        0x01,
-                                        ...scriptCbor
-                                    ]
-                                )
-                            )
-                        );
-
-                        if( v1Hash === resolved.reference_script_hash )
-                        {
-                            refScript = new Script(
-                                "PlutusScriptV1",
-                                (Cbor.parse(
-                                    scriptCbor
-                                ) as CborBytes).buffer
-                            )
-                        }
-                        else
-                        {
-                            refScript = new Script(
-                                "PlutusScriptV2",
-                                (Cbor.parse(
-                                    scriptCbor
-                                ) as CborBytes).buffer
-                            )
-                        }
-                    }
-                    else
-                    {
-                        refScript = new Script(
-                            "NativeScript",
-                            fromHex( res.cbor )
-                        );
-                    }
-
-                }
+                let refScript: Script | undefined =
+                resolved.reference_script_hash ?
+                await this.resolveScriptHash( resolved.reference_script_hash ) :
+                undefined;
                 
                 return new UTxO({
                     utxoRef: ref,
@@ -209,5 +167,128 @@ export class BlockfrostPluts
                 };
             })
         );
+    }
+
+    /** @since 0.1.0 */
+    addressesUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxOWithRefScriptHash[]>
+    {
+        return this.addressUtxos( address, pagination );
+    }
+
+    /** @since 0.1.0 */
+    async addressUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxOWithRefScriptHash[]>
+    {
+        address = address.toString() as AddressStr;
+        const _utxos = await this.api.addressesUtxos( address, pagination );
+
+        return _utxos.map(({
+            address,
+            tx_hash,
+            output_index,
+            amount,
+            // block,
+            data_hash,
+            inline_datum,
+            reference_script_hash,
+        }) => {
+
+            const datum: Hash32 | Data | undefined = 
+                inline_datum ? dataFromCbor( inline_datum ) :
+                data_hash ? new Hash32( data_hash ) :
+                undefined;
+
+            const utxo = new UTxO({
+                utxoRef: {
+                    id: tx_hash,
+                    index: output_index
+                },
+                resolved: {
+                    address: Address.fromString( address ),
+                    value: Value.fromUnits( amount ),
+                    datum,
+                    refScript: undefined
+                }
+            });
+
+            if( reference_script_hash )
+            {
+                Object.defineProperty(
+                    utxo, "refScriptHash", {
+                        value: new Hash28( reference_script_hash ),
+                        writable: false,
+                        enumerable: true,
+                        configurable: false,
+                    }
+                )
+            };
+
+            return utxo;
+        })
+    };
+
+    /** @since 0.1.0 */
+    scriptsCbor( hash: string | Hash28 ): Promise<Script>
+    {
+        return this.resolveScriptHash( hash );
+    }
+
+    /** @since 0.1.0 */
+    async resolveScriptHash( hash: string | Hash28 ): Promise<Script>
+    {
+        hash = hash.toString();
+        const res = await this.api.scriptsCbor( hash );
+
+        let script: Script | undefined;
+
+        if( !res.cbor )
+        {
+            throw new Error(
+                `unresolved reference script with hash "${hash}"`
+            );
+        }
+        const cbor = Cbor.parse( res.cbor );
+
+        if( cbor instanceof CborBytes )
+        {
+            const scriptCbor = cbor.buffer;
+            const v1Hash = toHex(
+                blake2b_224(
+                    new Uint8Array(
+                        [
+                            0x01,
+                            ...scriptCbor
+                        ]
+                    )
+                )
+            );
+
+            if( v1Hash === hash )
+            {
+                script = new Script(
+                    "PlutusScriptV1",
+                    (Cbor.parse(
+                        scriptCbor
+                    ) as CborBytes).buffer
+                )
+            }
+            else
+            {
+                script = new Script(
+                    "PlutusScriptV2",
+                    (Cbor.parse(
+                        scriptCbor
+                    ) as CborBytes).buffer
+                )
+            }
+        }
+        else
+        {
+            script = new Script(
+                "NativeScript",
+                fromHex( res.cbor )
+            );
+        }
+
+        return script;
     }
 }
