@@ -1,6 +1,6 @@
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
 import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/plu-ts-offchain";
-import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParamters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, StakeAddressBech32, StakeCredentials, AddressStr, Hash28 } from "@harmoniclabs/cardano-ledger-ts";
+import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParamters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, StakeAddressBech32, StakeCredentials, AddressStr, Hash28, Tx } from "@harmoniclabs/cardano-ledger-ts";
 
 import { BlockfrostOptions } from "./BlockfrostOptions";
 import { Data, dataFromCbor } from "@harmoniclabs/plutus-data";
@@ -9,6 +9,8 @@ import { fromHex, toHex } from "@harmoniclabs/uint8array-utils";
 import { blake2b_224 } from "@harmoniclabs/crypto";
 import { mockCostModels } from "./mockCostModel";
 import { ExBudget } from "@harmoniclabs/plutus-machine";
+import { adaptProtocolParams } from "./utils/adaptProtocolParams";
+import { AddressInfos } from "./types/AddressInfos";
 
 type CanResolveToUTxO = IUTxO | ITxOutRef | TxOutRefStr;
 
@@ -50,8 +52,12 @@ export class BlockfrostPluts
         );
     }
 
-    /** @since 0.1.0 */
-    submitTx = this.api.txSubmit;
+    /** @since 0.1.1 */
+    submitTx( tx: string | Tx ): Promise<string>
+    {
+        tx = typeof tx === "string" ? tx : tx.toCbor().toString(); 
+        return this.api.txSubmit( tx );
+    };
     
     /** @since 0.1.0 */
     async getGenesisInfos(): Promise<GenesisInfos>
@@ -63,47 +69,22 @@ export class BlockfrostPluts
         };
     }
 
+    /** @since 0.1.1 */
+    async epochsParameters( epoch_no: number ): Promise<ProtocolParamters>
+    {
+        return adaptProtocolParams( await this.api.epochsParameters( epoch_no ) )
+    }
+
+    /** @since 0.1.1 */
+    epochsLatestParameters(): Promise<ProtocolParamters>
+    {
+        return this.getProtocolParameters();
+    }
+
     /** @since 0.1.0 */
     async getProtocolParameters(): Promise<ProtocolParamters>
     {
-        const pp = await this.api.epochsLatestParameters();
-
-        return {
-            collateralPercentage: pp.collateral_percent ?? 150,
-            costModels: mockCostModels( pp.cost_models ),
-            executionUnitPrices: {
-                priceMemory: pp.price_mem ?? 0.0577,
-                priceSteps: pp.price_step ?? 0.0000721
-            },
-            maxBlockBodySize: pp.max_block_size,
-            maxBlockExecutionUnits: new ExBudget({
-                mem: BigInt( pp.max_block_ex_mem ?? 50000000 ),
-                cpu: BigInt( pp.max_block_ex_steps ?? 40000000000 )
-            }),
-            maxBlockHeaderSize: pp.max_block_header_size,
-            maxCollateralInputs: pp.max_collateral_inputs ?? 3,
-            maxTxExecutionUnits: new ExBudget({
-                mem: BigInt( pp.max_tx_ex_mem ?? 0 ),
-                cpu: BigInt( pp.max_tx_ex_steps ?? 0 )
-            }),
-            maxTxSize: pp.max_tx_size,
-            maxValueSize: BigInt( pp.max_val_size ?? 0 ),
-            minPoolCost: BigInt( pp.min_pool_cost ),
-            monetaryExpansion: CborPositiveRational.fromNumber( pp.rho ),
-            treasuryCut: CborPositiveRational.fromNumber( pp.tau ),
-            poolPledgeInfluence: CborPositiveRational.fromNumber( pp.a0 ),
-            poolRetireMaxEpoch: pp.e_max,
-            protocolVersion: {
-                major: pp.protocol_major_ver,
-                minor: pp.protocol_minor_ver
-            },
-            stakeAddressDeposit: BigInt( pp.key_deposit ),
-            stakePoolDeposit: BigInt( pp.pool_deposit ),
-            stakePoolTargetNum: BigInt( pp.n_opt ),
-            txFeeFixed: BigInt( pp.min_fee_b ),
-            txFeePerByte: BigInt( pp.min_fee_a ),
-            utxoCostPerByte: BigInt( pp.coins_per_utxo_size ?? 34482 )
-        }
+        return adaptProtocolParams( await this.api.epochsLatestParameters() )
     }
     
     /** @since 0.1.0 */
@@ -167,6 +148,35 @@ export class BlockfrostPluts
                 };
             })
         );
+    }
+
+    /** @since 0.1.1 */
+    addressesInfos( address: AddressStr | Address ): Promise<AddressInfos>
+    {
+        return this.addressInfos( address );
+    }
+
+    /** @since 0.1.1 */
+    async addressInfos( address: AddressStr | Address ): Promise<AddressInfos>
+    {
+        const response = await this.api.addresses( address.toString() );
+        const result = {} as AddressInfos;
+        
+        result.address = Address.fromString( response.address );
+        result.totAmount = Value.fromUnits( response.amount );
+        result.stakeAddress = response.stake_address ?
+            StakeAddress.fromString( response.stake_address ) :
+            undefined;
+        result.type = response.type;
+        result.script = response.script;
+
+        return result;
+    }
+
+    /** @since 0.1.1 */
+    async addressTotalAmount( address: AddressStr | Address ): Promise<Value>
+    {
+        return (await this.addressInfos(address)).totAmount;
     }
 
     /** @since 0.1.0 */
