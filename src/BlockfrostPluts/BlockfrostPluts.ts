@@ -59,13 +59,13 @@ export class BlockfrostPluts
         return this.api.txSubmit( tx );
     };
     
-    /** @since 0.1.0 */
+    /** @since 0.1.3 */
     async getGenesisInfos(): Promise<GenesisInfos>
     {
         const gensis = await this.api.genesis();
         return {
             slotLengthInMilliseconds: gensis.slot_length * 1000,
-            systemStartPOSIX: gensis.system_start
+            systemStartPOSIX: gensis.system_start * 1000
         };
     }
 
@@ -242,7 +242,7 @@ export class BlockfrostPluts
         return this.resolveScriptHash( hash );
     }
 
-    /** @since 0.1.0 */
+    /** @since 0.1.2 */
     async resolveScriptHash( hash: string | Hash28 ): Promise<Script>
     {
         hash = hash.toString();
@@ -257,16 +257,18 @@ export class BlockfrostPluts
             );
         }
         const cbor = Cbor.parse( res.cbor );
+        const cborBytes = fromHex( res.cbor );
 
         if( cbor instanceof CborBytes )
         {
             const scriptCbor = cbor.buffer;
+
             const v1Hash = toHex(
                 blake2b_224(
                     new Uint8Array(
                         [
                             0x01,
-                            ...scriptCbor
+                            ...cborBytes
                         ]
                     )
                 )
@@ -276,18 +278,14 @@ export class BlockfrostPluts
             {
                 script = new Script(
                     "PlutusScriptV1",
-                    (Cbor.parse(
-                        scriptCbor
-                    ) as CborBytes).buffer
+                    scriptCbor
                 )
             }
             else
             {
                 script = new Script(
                     "PlutusScriptV2",
-                    (Cbor.parse(
-                        scriptCbor
-                    ) as CborBytes).buffer
+                    scriptCbor
                 )
             }
         }
@@ -295,7 +293,7 @@ export class BlockfrostPluts
         {
             script = new Script(
                 "NativeScript",
-                fromHex( res.cbor )
+                cborBytes
             );
         }
 
