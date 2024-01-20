@@ -109,6 +109,7 @@ export class BlockfrostPluts
     {
         tx = typeof tx === "string" ? Tx.fromCbor( tx ) : tx; 
         const res = await fetch(`${this.url}/tx/submit`, {
+            method: "POST",
             headers: {
                 "Content-Type": "application-cbor",
                 "project_id": this.projectId
