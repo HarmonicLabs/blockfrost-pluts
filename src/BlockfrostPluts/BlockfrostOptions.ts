@@ -1,6 +1,3 @@
-import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
-import { isObject } from "@harmoniclabs/obj-utils";
-
 export type CardanoNetwork = 'mainnet' | 'testnet' | 'preview' | 'preprod';
 export type BlockfrostNetwork = CardanoNetwork | 'ipfs';
 
@@ -48,4 +45,4 @@ type AdditionalOptions = {
     requestTimeout?: number;
     retrySettings?: RequiredRetryOptions;
 };
-export type BlockfrostOptions = (OptionCombination1 | OptionCombination2) & AdditionalOptions;
+export type BlockfrostOptions = OptionCombination1;
