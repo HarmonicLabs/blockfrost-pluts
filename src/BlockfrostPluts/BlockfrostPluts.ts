@@ -111,7 +111,7 @@ export class BlockfrostPluts
         const res = await fetch(`${this.url}/tx/submit`, {
             method: "POST",
             headers: {
-                "Content-Type": "application-cbor",
+                "Content-Type": "application/cbor",
                 "project_id": this.projectId
             },
             body: tx.toCbor().toBuffer().buffer
