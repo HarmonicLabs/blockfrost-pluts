@@ -1,5 +1,5 @@
 import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/plu-ts-offchain";
-import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParamters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, StakeAddressBech32, StakeCredentials, AddressStr, Hash28, Tx } from "@harmoniclabs/cardano-ledger-ts";
+import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParamters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, StakeAddressBech32, StakeCredentials, AddressStr, Hash28, Tx, TxRedeemer } from "@harmoniclabs/cardano-ledger-ts";
 
 import { BlockfrostOptions } from "./BlockfrostOptions";
 import { Data, dataFromCbor } from "@harmoniclabs/plutus-data";
@@ -10,6 +10,7 @@ import { mockCostModels } from "./mockCostModel";
 import { ExBudget } from "@harmoniclabs/plutus-machine";
 import { adaptProtocolParams } from "./utils/adaptProtocolParams";
 import { AddressInfos } from "./types/AddressInfos";
+import { getRealTxRedeemers } from "./utils/evaluatePlutusCosts";
 
 type CanResolveToUTxO = IUTxO | ITxOutRef | TxOutRefStr;
 
@@ -116,8 +117,25 @@ export class BlockfrostPluts
             },
             body: tx.toCbor().toBuffer().buffer
         });
-        if (!res.ok) throw res.statusText + await res.text();
+        if (!res.ok) throw new Error( res.statusText + await res.text() );
         return (tx as Tx).hash.toString();
+    };
+
+    /** @since 0.1.7 */
+    async evaluatePlutusCosts( tx: string | Tx ): Promise<TxRedeemer[]>
+    {
+        tx = typeof tx === "string" ? Tx.fromCbor( tx ) : tx; 
+        const res = await fetch(`${this.url}/utils/txs/evaluate`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/cbor",
+                "Accept": "application/json",
+                "project_id": this.projectId
+            },
+            body: tx.toCbor().toBuffer().buffer
+        });
+        if (!res.ok) throw new Error( res.statusText + await res.text() );
+        return getRealTxRedeemers( tx, await res.json() );
     };
 
     async get( url: string )
