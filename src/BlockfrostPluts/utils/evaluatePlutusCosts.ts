@@ -89,7 +89,7 @@ function _getRealTxRedeemers( tx: Tx, ogmiosRdmrs: OgmiosRdmrExUnits[] ): TxRede
 
 export function getRealTxRedeemers( tx: Tx, response: any ): TxRedeemer[]
 {
-    if( !isOgmios5EvalTxResponse( response ) ) throw new Error("unexpected response; expected ogmios 5.6 EvalTx response");
+    // if( !isOgmios5EvalTxResponse( response ) ) throw new Error("unexpected response; expected ogmios 5.6 EvalTx response");
     return _getRealTxRedeemers(
         tx,
         ogmiosEvalTxResultToPartialTxRdmrs(
