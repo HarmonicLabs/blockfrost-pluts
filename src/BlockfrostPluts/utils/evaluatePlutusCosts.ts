@@ -72,19 +72,27 @@ function ogmiosEvalTxResultToPartialTxRdmrs( result: any ): OgmiosRdmrExUnits[]
 function _getRealTxRedeemers( tx: Tx, ogmiosRdmrs: OgmiosRdmrExUnits[] ): TxRedeemer[]
 {
     const rdmrs = (tx.witnesses.redeemers ?? []).slice();
+    const result: TxRedeemer[] = new Array( rdmrs.length );
 
     for( const { tag, index, exunits } of ogmiosRdmrs )
     {
         const idx = rdmrs.findIndex( rdmr => rdmr.tag === tag && rdmr.index === index );
         if( idx < 0 ) continue;
         const rdmr = rdmrs[idx];
-        rdmrs[idx] = new TxRedeemer({
-            ...rdmr,
+        result[idx] = new TxRedeemer({
+            tag: rdmr.tag,
+            index: rdmr.index,
+            data: rdmr.data.clone(),
             execUnits: new ExBudget( exunits )
         });
     }
 
-    return rdmrs;
+    for( let i = 0; i < result.length; i++ )
+    {
+        if( result[i] === undefined ) result[i] = rdmrs[i].clone();
+    }
+
+    return result;
 }
 
 export function getRealTxRedeemers( tx: Tx, response: any ): TxRedeemer[]
