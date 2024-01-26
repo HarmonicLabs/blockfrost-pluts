@@ -35,37 +35,24 @@ function adaptOgmiosTag( tag: OgmiosTag ): TxRedeemerTag
 
 function ogmiosEvalTxResultToPartialTxRdmrs( result: any ): OgmiosRdmrExUnits[]
 {
-    if( !isObject( result ) ) return [];
+    if( typeof result !== "object" || result === null ) throw new Error("invalid ogmios result")
 
     const keys = Object.keys( result );
-    let realLen = 0;
-    const rdmrs: OgmiosRdmrExUnits[] = new Array( keys.length );
+    const rdmrs: OgmiosRdmrExUnits[] = [];
     
     for( const k of keys )
     {
         const [ tagStr, idxStr ] = k.split(":");
-        switch( tagStr )
-        {
-            case "withdrawal":
-            case "certificate":
-            case "mint":
-            case "spend": {
-                rdmrs.push({
-                    tag: adaptOgmiosTag( tagStr ),
-                    index: parseInt( idxStr ),
-                    exunits: {
-                        mem: result[k].memory,
-                        cpu: result[k].steps
-                    }
-                });
-                realLen++;
-                break;
+        rdmrs.push({
+            tag: adaptOgmiosTag( tagStr as any ),
+            index: parseInt( idxStr ),
+            exunits: {
+                mem: result[k].memory,
+                cpu: result[k].steps
             }
-            default: break;
-        }
+        });
     }
 
-    rdmrs.length = realLen;
     return rdmrs;
 }
 
@@ -77,7 +64,7 @@ function _getRealTxRedeemers( tx: Tx, ogmiosRdmrs: OgmiosRdmrExUnits[] ): TxRede
     for( const { tag, index, exunits } of ogmiosRdmrs )
     {
         const idx = rdmrs.findIndex( rdmr => rdmr.tag === tag && rdmr.index === index );
-        if( idx < 0 ) continue;
+        if( idx < 0 ) throw new Error("missing redemeer");
         const rdmr = rdmrs[idx];
         result[idx] = new TxRedeemer({
             tag: rdmr.tag,
@@ -99,10 +86,11 @@ export function getRealTxRedeemers( tx: Tx, response: any ): TxRedeemer[]
 {
     // if( !isOgmios5EvalTxResponse( response ) ) throw new Error("unexpected response; expected ogmios 5.6 EvalTx response");
     if( !response.result ) throw new Error( "Missing Ogmios result: " + (response.fault?.string ?? ""));
+
     return _getRealTxRedeemers(
         tx,
         ogmiosEvalTxResultToPartialTxRdmrs(
-            response.result
+            response.result?.EvaluationResult ?? response.result
         )
     );
 }
