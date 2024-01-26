@@ -132,7 +132,7 @@ export class BlockfrostPluts
                 "Accept": "application/json",
                 "project_id": this.projectId
             },
-            body: tx.toCbor().toBuffer().buffer
+            body: tx.toCbor().toString()
         });
         if (!res.ok) throw new Error( res.statusText + await res.text() );
         return getRealTxRedeemers( tx, await res.json() );
