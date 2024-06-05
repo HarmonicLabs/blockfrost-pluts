@@ -11,6 +11,7 @@ import { ExBudget } from "@harmoniclabs/plutus-machine";
 import { adaptProtocolParams } from "./utils/adaptProtocolParams";
 import { AddressInfos } from "./types/AddressInfos";
 import { getRealTxRedeemers } from "./utils/evaluatePlutusCosts";
+import { BlockInfos } from "./types/BlockInfos";
 
 type CanResolveToUTxO = IUTxO | ITxOutRef | TxOutRefStr;
 
@@ -61,7 +62,7 @@ export type UTxOWithRefScriptHash = UTxO & { readonly refScriptHash?: Hash28 }
 export class BlockfrostPluts
     implements ITxRunnerProvider, ISubmitTx, IGetProtocolParameters
 {
-    readonly network: "mainnet" | "preview" | "preprod";
+    readonly network: "mainnet" | "preview" | "preprod" | "sanchonet";
     readonly url: string;
     readonly projectId: string;
 
@@ -71,14 +72,16 @@ export class BlockfrostPluts
         const network = (
             projectId.startsWith("mainnet") ? "mainnet" :
             projectId.startsWith("preprod") ? "preprod" :
-            projectId.startsWith("preview") ? "preview" : ""
+            projectId.startsWith("preview") ? "preview" :
+            projectId.startsWith("sanchonet") ? "sanchonet" : ""
         );
         if( network === "" ) throw new Error("invalid projectId");
 
         const url = customBackend ?? (
             network === "mainnet" ? "https://cardano-mainnet.blockfrost.io/api/v0": 
             network === "preprod" ? "https://cardano-preprod.blockfrost.io/api/v0": 
-            network === "preview" ? "https://cardano-preview.blockfrost.io/api/v0": ""
+            network === "preview" ? "https://cardano-preview.blockfrost.io/api/v0":
+            network === "sanchonet" ? "https://cardano-sanchonet.blockfrost.io/api/v0": ""
         );
 
         Object.defineProperties(
@@ -147,6 +150,12 @@ export class BlockfrostPluts
         });
         if (!res.ok) throw res.statusText + await res.text();
         return await res.json();
+    }
+
+    /** @since 0.1.12 */
+    getChainTip(): Promise<BlockInfos>
+    {
+        return this.get(`${this.url}/blocks/latest`);
     }
     
     /** @since 0.1.3 */
