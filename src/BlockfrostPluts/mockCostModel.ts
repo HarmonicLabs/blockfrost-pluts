@@ -1,4 +1,4 @@
-import { CostModelPlutusV1, CostModelPlutusV2, CostModels, defaultV1Costs, defaultV2Costs, isCostModelsV1, isCostModelsV2, toCostModelV1, toCostModelV2 } from "@harmoniclabs/cardano-ledger-ts";
+import { CostModelPlutusV1, CostModelPlutusV2, CostModels, defaultV1Costs, defaultV2Costs, isCostModelsV1, isCostModelsV2, toCostModelV1, toCostModelV2 } from "@harmoniclabs/cardano-costmodels-ts";
 import { hasOwn, isObject } from "@harmoniclabs/obj-utils";
 
 export function mockCostModels( blockfrostCostModels?: { [key: string]: unknown; } | null ): CostModels

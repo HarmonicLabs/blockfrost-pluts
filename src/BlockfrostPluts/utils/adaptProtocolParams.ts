@@ -1,6 +1,5 @@
-import { ProtocolParamters } from "@harmoniclabs/cardano-ledger-ts";
+import { ProtocolParameters } from "@harmoniclabs/cardano-ledger-ts";
 import { CborPositiveRational } from "@harmoniclabs/cbor";
-import { ExBudget } from "@harmoniclabs/plutus-machine";
 import { mockCostModels } from "../mockCostModel";
 
 export type BlockfrostProtocolParams = {
@@ -180,9 +179,10 @@ export type BlockfrostProtocolParams = {
     coins_per_utxo_word: string | null;
 }
 
-export function adaptProtocolParams( pp: BlockfrostProtocolParams ): ProtocolParamters
+export function adaptProtocolParams( pp: BlockfrostProtocolParams ): ProtocolParameters
 {
     return {
+        ...(pp as any),
         collateralPercentage: pp.collateral_percent ?? 150,
         costModels: mockCostModels( pp.cost_models ),
         executionUnitPrices: {
@@ -190,15 +190,15 @@ export function adaptProtocolParams( pp: BlockfrostProtocolParams ): ProtocolPar
             priceSteps: pp.price_step ?? 0.0000721
         },
         maxBlockBodySize: pp.max_block_size,
-        maxBlockExecutionUnits: new ExBudget({
-            mem: BigInt( pp.max_block_ex_mem ?? 50000000 ),
-            cpu: BigInt( pp.max_block_ex_steps ?? 40000000000 )
+        maxBlockExecutionUnits: ({
+            memory: Number( pp.max_block_ex_mem ?? 50000000 ),
+            steps: Number( pp.max_block_ex_steps ?? 40000000000 ),
         }),
         maxBlockHeaderSize: pp.max_block_header_size,
         maxCollateralInputs: pp.max_collateral_inputs ?? 3,
-        maxTxExecutionUnits: new ExBudget({
-            mem: BigInt( pp.max_tx_ex_mem ?? 0 ),
-            cpu: BigInt( pp.max_tx_ex_steps ?? 0 )
+        maxTxExecutionUnits: ({
+            memory: Number( pp.max_tx_ex_mem ?? 0 ),
+            steps: Number( pp.max_tx_ex_steps ?? 0 )
         }),
         maxTxSize: pp.max_tx_size,
         maxValueSize: BigInt( pp.max_val_size ?? 0 ),
@@ -216,6 +216,6 @@ export function adaptProtocolParams( pp: BlockfrostProtocolParams ): ProtocolPar
         stakePoolTargetNum: BigInt( pp.n_opt ),
         txFeeFixed: BigInt( pp.min_fee_b ),
         txFeePerByte: BigInt( pp.min_fee_a ),
-        utxoCostPerByte: BigInt( pp.coins_per_utxo_size ?? 34482 )
-    }
+        utxoCostPerByte: BigInt( pp.coins_per_utxo_size ?? 34482 ),
+    } as ProtocolParameters
 }

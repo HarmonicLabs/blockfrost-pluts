@@ -1,16 +1,14 @@
 import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/plu-ts-offchain";
-import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParamters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, StakeAddressBech32, StakeCredentials, AddressStr, Hash28, Tx, TxRedeemer } from "@harmoniclabs/cardano-ledger-ts";
+import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParameters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, AddressStr, Hash28, Tx, TxRedeemer } from "@harmoniclabs/cardano-ledger-ts";
 
 import { BlockfrostOptions } from "./BlockfrostOptions";
 import { Data, dataFromCbor } from "@harmoniclabs/plutus-data";
-import { Cbor, CborBytes, CborPositiveRational } from "@harmoniclabs/cbor";
+import { Cbor, CborBytes } from "@harmoniclabs/cbor";
 import { fromHex, toHex } from "@harmoniclabs/uint8array-utils";
 import { blake2b_224 } from "@harmoniclabs/crypto";
-import { mockCostModels } from "./mockCostModel";
-import { ExBudget } from "@harmoniclabs/plutus-machine";
 import { adaptProtocolParams } from "./utils/adaptProtocolParams";
 import { AddressInfos } from "./types/AddressInfos";
-import { getRealTxRedeemers } from "./utils/evaluatePlutusCosts";
+import { OgmiosRdmrExUnits, getRealTxRedeemers } from "./utils/evaluatePlutusCosts";
 import { BlockInfos } from "./types/BlockInfos";
 
 type CanResolveToUTxO = IUTxO | ITxOutRef | TxOutRefStr;
@@ -124,8 +122,8 @@ export class BlockfrostPluts
         return (tx as Tx).hash.toString();
     };
 
-    /** @since 0.1.7 */
-    async evaluatePlutusCosts( tx: string | Tx ): Promise<TxRedeemer[]>
+    /** @since 0.1.13 */
+    async evaluatePlutusCosts( tx: string | Tx ): Promise<OgmiosRdmrExUnits[]>
     {
         tx = typeof tx === "string" ? Tx.fromCbor( tx ) : tx; 
         const res = await fetch(`${this.url}/utils/txs/evaluate`, {
@@ -169,19 +167,19 @@ export class BlockfrostPluts
     }
 
     /** @since 0.1.1 */
-    async epochsParameters( epoch_no: number ): Promise<ProtocolParamters>
+    async epochsParameters( epoch_no: number ): Promise<ProtocolParameters>
     {
         return adaptProtocolParams( await this.get(`${this.url}/epochs/${epoch_no}/parameters`) )
     }
 
     /** @since 0.1.1 */
-    epochsLatestParameters(): Promise<ProtocolParamters>
+    epochsLatestParameters(): Promise<ProtocolParameters>
     {
         return this.getProtocolParameters();
     }
 
     /** @since 0.1.0 */
-    async getProtocolParameters(): Promise<ProtocolParamters>
+    async getProtocolParameters(): Promise<ProtocolParameters>
     {
         return adaptProtocolParams( await this.get(`${this.url}/epochs/latest/parameters`) )
     }
