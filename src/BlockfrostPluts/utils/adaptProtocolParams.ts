@@ -1,4 +1,4 @@
-import { ProtocolParameters } from "@harmoniclabs/cardano-ledger-ts";
+import { defaultProtocolParameters, ProtocolParameters } from "@harmoniclabs/cardano-ledger-ts";
 import { CborPositiveRational } from "@harmoniclabs/cbor";
 import { mockCostModels } from "../mockCostModel";
 
@@ -182,6 +182,7 @@ export type BlockfrostProtocolParams = {
 export function adaptProtocolParams( pp: BlockfrostProtocolParams ): ProtocolParameters
 {
     return {
+        ...defaultProtocolParameters,
         ...(pp as any),
         collateralPercentage: pp.collateral_percent ?? 150,
         costModels: mockCostModels( pp.cost_models ),
