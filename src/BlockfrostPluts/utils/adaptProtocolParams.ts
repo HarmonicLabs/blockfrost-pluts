@@ -121,6 +121,11 @@ export type BlockfrostProtocolParams = {
             [key: string]: unknown | undefined;
         } |
         null;
+    cost_models_raw: 
+    {
+        [key: string]: unknown | undefined;
+    } |
+    null;
     /**
      * @description The per word cost of script memory usage
      * @example 0.0577
@@ -185,7 +190,7 @@ export function adaptProtocolParams( pp: BlockfrostProtocolParams ): ProtocolPar
         ...defaultProtocolParameters,
         ...(pp as any),
         collateralPercentage: pp.collateral_percent ?? 150,
-        costModels: mockCostModels( pp.cost_models ),
+        costModels: mockCostModels( pp.cost_models, pp.cost_models_raw as any ),
         executionUnitPrices: {
             priceMemory: pp.price_mem ?? 0.0577,
             priceSteps: pp.price_step ?? 0.0000721

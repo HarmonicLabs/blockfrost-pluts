@@ -1,7 +1,10 @@
 import { CostModelPlutusV1, CostModelPlutusV2, CostModelPlutusV3, CostModels, defaultV1Costs, defaultV2Costs, defaultV3Costs, isCostModelsV1, isCostModelsV2, isCostModelsV3, toCostModelV1, toCostModelV2, toCostModelV3 } from "@harmoniclabs/cardano-costmodels-ts";
 import { hasOwn, isObject } from "@harmoniclabs/obj-utils";
 
-export function mockCostModels( blockfrostCostModels?: { [key: string]: unknown; } | null ): CostModels
+export function mockCostModels( 
+    blockfrostCostModels?: { [key: string]: unknown; } | null,
+    raw?: { [key: string]: number[]; } | null
+): CostModels
 {
     if( !isObject( blockfrostCostModels ) ) return {};
 
@@ -18,12 +21,14 @@ export function mockCostModels( blockfrostCostModels?: { [key: string]: unknown;
 
     if( hasOwn( blockfrostCostModels, "PlutusV2" ) )
     {
-        res.PlutusScriptV2 = blockfrostCostModels.PlutusV2 = mockV2CostModel( blockfrostCostModels.PlutusV2 )
+        if( raw && isCostModelsV2( raw.PlutusV2 ) ) res.PlutusScriptV2 = toCostModelV2( raw.PlutusV2 );
+        else res.PlutusScriptV2 = blockfrostCostModels.PlutusV2 = mockV2CostModel( blockfrostCostModels.PlutusV2 )
     }
 
-    if( hasOwn( blockfrostCostModels, "PlutusV2" ) )
+    if( hasOwn( blockfrostCostModels, "PlutusV3" ) )
     {
-        res.PlutusScriptV3 = blockfrostCostModels.PlutusV3 = mockV3CostModel( blockfrostCostModels.PlutusV3 )
+        if( raw && isCostModelsV3( raw.PlutusV3 ) ) res.PlutusScriptV3 = toCostModelV3( raw.PlutusV3 );
+        else res.PlutusScriptV3 = blockfrostCostModels.PlutusV3 = mockV3CostModel( blockfrostCostModels.PlutusV3 )
     }
 
     return res;
