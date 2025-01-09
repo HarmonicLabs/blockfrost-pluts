@@ -16,7 +16,8 @@ export function mockCostModels(
 
     if( hasOwn( blockfrostCostModels, "PlutusV1" ) )
     {
-        res.PlutusScriptV1 = blockfrostCostModels.PlutusV1 = mockV1CostModel( blockfrostCostModels.PlutusV1 )
+        if( raw && isCostModelsV1( raw.PlutusV1 ) ) res.PlutusScriptV1 = toCostModelV1( raw.PlutusV1 );
+        else res.PlutusScriptV1 = blockfrostCostModels.PlutusV1 = mockV1CostModel( blockfrostCostModels.PlutusV1 )
     }
 
     if( hasOwn( blockfrostCostModels, "PlutusV2" ) )

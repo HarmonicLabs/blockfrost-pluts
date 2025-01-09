@@ -1,0 +1,14 @@
+import { config } from "dotenv";
+import { BlockfrostPluts } from "../BlockfrostPluts";
+
+config();
+
+test("pp", async () => {
+    const blockfrost = new BlockfrostPluts({
+        projectId: process.env.BLOCKFROST_PROJECT_ID!,
+    });
+
+    const pp = await blockfrost.getProtocolParameters();
+
+    console.log((pp as any).cost_models_raw.PlutusV3.length);
+})

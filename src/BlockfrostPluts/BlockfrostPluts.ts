@@ -280,8 +280,20 @@ export class BlockfrostPluts
         return (await this.addressInfos(address)).totAmount;
     }
 
+    async addressTxs( addr: AddressStr | Address ): Promise<Hash32[]>
+    {
+        const addrStr = addr.toString();
+        const pastTxsObjs = await this.get(this.url + `/addresses/${addrStr}/transactions`);
+        return (pastTxsObjs.map( (tx: any) => new Hash32( tx.tx_hash ) )).reverse();
+    }
+
     /** @since 0.1.0 */
     addressesUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxOWithRefScriptHash[]>
+    {
+        return this.addressUtxos( address, pagination );
+    }
+
+    async getUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxOWithRefScriptHash[]>
     {
         return this.addressUtxos( address, pagination );
     }
