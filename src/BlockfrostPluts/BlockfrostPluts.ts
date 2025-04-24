@@ -1,4 +1,5 @@
-import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/plu-ts-offchain";
+// import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/plu-ts-offchain";
+import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/buildooor";
 import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParameters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, AddressStr, Hash28, Tx, TxRedeemer } from "@harmoniclabs/cardano-ledger-ts";
 
 import { BlockfrostOptions } from "./BlockfrostOptions";
