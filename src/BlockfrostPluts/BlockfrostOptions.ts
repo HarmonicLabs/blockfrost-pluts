@@ -28,8 +28,9 @@ export interface RequiredRetryOptions {
 }
 
 type OptionCombination1 = {
-    projectId: string;
+    projectId?: string;
     customBackend?: string;
+    network?: CardanoNetwork;
 };
 type OptionCombination2 = {
     projectId?: string;

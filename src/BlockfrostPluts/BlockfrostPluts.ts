@@ -65,22 +65,27 @@ export class BlockfrostPluts
     readonly url: string;
     readonly projectId: string;
 
-    constructor({ projectId, customBackend }: BlockfrostOptions )
+    constructor({ projectId, customBackend, network }: BlockfrostOptions )
     {
-        if( typeof projectId !== "string" ) throw new Error("blockfrost projectId not a string");
-        const network = (
-            projectId.startsWith("mainnet") ? "mainnet" :
-            projectId.startsWith("preprod") ? "preprod" :
-            projectId.startsWith("preview") ? "preview" :
-            projectId.startsWith("sanchonet") ? "sanchonet" : ""
-        );
-        if( network === "" ) throw new Error("invalid projectId");
+        if( typeof projectId !== "string" && typeof customBackend !== "string" ) throw new Error("blockfrost projectId not a string");
+
+        network ??= "mainnet";
+        if( typeof projectId === "string" )
+        {
+            network = (
+                projectId.startsWith("mainnet") ? "mainnet" :
+                projectId.startsWith("preprod") ? "preprod" :
+                projectId.startsWith("preview") ? "preview" :
+                projectId.startsWith("sanchonet") ? "sanchonet" : ("" as any)
+            );
+            if( (network as any) === "" ) throw new Error("invalid projectId");
+        }
 
         const url = customBackend ?? (
             network === "mainnet" ? "https://cardano-mainnet.blockfrost.io/api/v0": 
             network === "preprod" ? "https://cardano-preprod.blockfrost.io/api/v0": 
             network === "preview" ? "https://cardano-preview.blockfrost.io/api/v0":
-            network === "sanchonet" ? "https://cardano-sanchonet.blockfrost.io/api/v0": ""
+            "https://cardano-mainnet.blockfrost.io/api/v0"
         );
 
         Object.defineProperties(
@@ -98,7 +103,7 @@ export class BlockfrostPluts
                     configurable: false,
                 },
                 projectId: {
-                    value: projectId,
+                    value: projectId ?? "",
                     writable: false,
                     enumerable: true,
                     configurable: false,
