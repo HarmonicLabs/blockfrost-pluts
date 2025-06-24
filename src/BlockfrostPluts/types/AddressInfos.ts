@@ -1,4 +1,4 @@
-import { Address, StakeAddress, Value } from "@harmoniclabs/cardano-ledger-ts";
+import { Address, StakeAddress, Value } from "@harmoniclabs/buildooor";
 
 export interface AddressInfos {
     address: Address;

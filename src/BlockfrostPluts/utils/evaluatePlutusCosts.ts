@@ -1,4 +1,4 @@
-import { Tx, TxRedeemer, TxRedeemerTag } from "@harmoniclabs/cardano-ledger-ts";
+import { Tx, TxRedeemer, TxRedeemerTag } from "@harmoniclabs/buildooor";
 import { isObject } from "@harmoniclabs/obj-utils";
 
 function isOgmios5EvalTxResponse( stuff: any ): boolean

@@ -1,4 +1,4 @@
-import { defaultProtocolParameters, ProtocolParameters } from "@harmoniclabs/cardano-ledger-ts";
+import { defaultProtocolParameters, ProtocolParameters } from "@harmoniclabs/buildooor";
 import { CborPositiveRational } from "@harmoniclabs/cbor";
 import { mockCostModels } from "../mockCostModel";
 
