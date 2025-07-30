@@ -1,6 +1,6 @@
 // import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/plu-ts-offchain";
 import type { CanBeData, GenesisInfos, ISubmitTx, ITxRunnerProvider, IGetProtocolParameters } from "@harmoniclabs/buildooor";
-import { UTxO, Hash32, Address, TxOutRef, Value, Script, ProtocolParameters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, AddressStr, Hash28, Tx, TxRedeemer } from "@harmoniclabs/buildooor";
+import { Hash32, Address, TxOutRef, Value, Script, ProtocolParameters, ITxOutRef, IUTxO, TxOutRefStr, isITxOutRef, isIUTxO, StakeAddress, AddressStr, Hash28, Tx, TxRedeemer, UTxO } from "@harmoniclabs/buildooor";
 
 import { BlockfrostOptions } from "./BlockfrostOptions";
 import { Data, dataFromCbor } from "@harmoniclabs/plutus-data";
@@ -33,6 +33,14 @@ export type PaginationOptions = {
     order?: 'asc' | 'desc';
 };
 
+const DEFAULT_PAGINATION_COUNT = 100;
+const DEFAULT_PAGINATION_PAGE = 1;
+
+export const defaultPaginationOpts: PaginationOptions = Object.freeze({
+    count: DEFAULT_PAGINATION_COUNT,
+    page: DEFAULT_PAGINATION_PAGE
+});
+
 export function paginationOptsToStr({ count, page, order }: PaginationOptions ): string
 {
     let str = "";
@@ -56,7 +64,43 @@ export function paginationOptsToStr({ count, page, order }: PaginationOptions ):
     return str;
 }
 
-export type UTxOWithRefScriptHash = UTxO & { readonly refScriptHash?: Hash28 }
+async function getUtxoFromBlockfrostJson(
+    this: BlockfrostPluts,
+    {
+        address,
+        tx_hash,
+        output_index,
+        amount,
+        // block,
+        data_hash,
+        inline_datum,
+        reference_script_hash,
+    }: any): Promise<UTxO>
+{
+    const datum: Hash32 | Data | undefined = 
+        inline_datum ? dataFromCbor( inline_datum ) :
+        data_hash ? new Hash32( data_hash ) :
+        undefined;
+    
+    let refScript: Script | undefined = undefined;
+    if( typeof reference_script_hash === "string" )
+    {
+        refScript = await this.resolveScriptHash( reference_script_hash );
+    };
+
+    return new UTxO({
+        utxoRef: {
+            id: tx_hash,
+            index: output_index
+        },
+        resolved: {
+            address: Address.fromString( address ),
+            value: Value.fromUnits( amount ),
+            datum,
+            refScript: undefined
+        }
+    });
+}
 
 export class BlockfrostPluts
     implements ITxRunnerProvider, ISubmitTx, IGetProtocolParameters
@@ -294,66 +338,67 @@ export class BlockfrostPluts
     }
 
     /** @since 0.1.0 */
-    addressesUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxOWithRefScriptHash[]>
+    addressesUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxO[]>
     {
         return this.addressUtxos( address, pagination );
     }
 
-    async getUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxOWithRefScriptHash[]>
+    async getUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxO[]>
     {
         return this.addressUtxos( address, pagination );
     }
 
-    /** @since 0.1.0 */
-    async addressUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxOWithRefScriptHash[]>
+    /** @since 0.3.0 */
+    private async _addrUtxoQuery( baseUrl: string, pagination?: PaginationOptions ): Promise<UTxO[]>
+    {
+       const explicitPagination = !!pagination;
+
+        pagination = explicitPagination ? {
+            ...defaultPaginationOpts,
+            ...pagination
+        } : { ...defaultPaginationOpts };
+
+        const countPerPage = pagination.count ?? DEFAULT_PAGINATION_COUNT;
+        let page = pagination.page ?? DEFAULT_PAGINATION_PAGE;
+
+        let _utxos: any[] = [];
+        
+        if( explicitPagination ) _utxos = _utxos.concat(
+            await this.get(`${baseUrl}${paginationOptsToStr( pagination )}`)
+        )
+        else do {
+            _utxos = _utxos.concat(
+                await this.get(`${baseUrl}${paginationOptsToStr( pagination )}`)
+            )
+            page++;
+            pagination.page = page;
+        } while( _utxos.length === (countPerPage * (page - 1)) );
+
+        return await Promise.all(
+            _utxos.map( getUtxoFromBlockfrostJson.bind( this ) )
+        );
+    }
+
+    /** @since 0.3.0 */
+    async addressAssetUtxos( address: AddressStr | Address, assetUnit: string, pagination?: PaginationOptions ): Promise<UTxO[]>
     {
         address = address.toString() as AddressStr;
-        let url
-        const _utxos = await this.get(`${this.url}/addresses/${address}/utxos${paginationOptsToStr( pagination ?? {} )}`);
+        const baseUrl = `${this.url}/addresses/${address}/utxos/${assetUnit}`;
+        
+        return this._addrUtxoQuery( baseUrl, pagination );
+    }
 
-        return _utxos.map(({
-            address,
-            tx_hash,
-            output_index,
-            amount,
-            // block,
-            data_hash,
-            inline_datum,
-            reference_script_hash,
-        }: any) => {
+    /**
+     * @since 0.1.0
+     * 
+     * @version 0.3.0 adds default pagination and full query on missing pagination
+    **/
+    async addressUtxos( address: AddressStr | Address, pagination?: PaginationOptions ): Promise<UTxO[]>
+    {
+        address = address.toString() as AddressStr;
+        const baseUrl = `${this.url}/addresses/${address}/utxos`;
 
-            const datum: Hash32 | Data | undefined = 
-                inline_datum ? dataFromCbor( inline_datum ) :
-                data_hash ? new Hash32( data_hash ) :
-                undefined;
-
-            const utxo = new UTxO({
-                utxoRef: {
-                    id: tx_hash,
-                    index: output_index
-                },
-                resolved: {
-                    address: Address.fromString( address ),
-                    value: Value.fromUnits( amount ),
-                    datum,
-                    refScript: undefined
-                }
-            });
-
-            if( reference_script_hash )
-            {
-                Object.defineProperty(
-                    utxo, "refScriptHash", {
-                        value: new Hash28( reference_script_hash ),
-                        writable: false,
-                        enumerable: true,
-                        configurable: false,
-                    }
-                )
-            };
-
-            return utxo;
-        })
+        return this._addrUtxoQuery( baseUrl, pagination );
     };
 
     /** @since 0.1.0 */
