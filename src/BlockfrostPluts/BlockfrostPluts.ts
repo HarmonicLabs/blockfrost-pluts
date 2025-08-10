@@ -82,11 +82,11 @@ async function getUtxoFromBlockfrostJson(
         data_hash ? new Hash32( data_hash ) :
         undefined;
     
-    let refScript: Script | undefined = undefined;
-    if( typeof reference_script_hash === "string" )
-    {
-        refScript = await this.resolveScriptHash( reference_script_hash );
-    };
+    const refScript: Script | undefined = (
+        typeof reference_script_hash === "string" ?
+        await this.resolveScriptHash( reference_script_hash ) :
+        undefined
+    );
 
     return new UTxO({
         utxoRef: {
@@ -97,7 +97,7 @@ async function getUtxoFromBlockfrostJson(
             address: Address.fromString( address ),
             value: Value.fromUnits( amount ),
             datum,
-            refScript: undefined
+            refScript
         }
     });
 }
