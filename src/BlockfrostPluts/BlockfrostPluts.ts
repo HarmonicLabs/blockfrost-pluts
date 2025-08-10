@@ -407,7 +407,10 @@ export class BlockfrostPluts
         return this.resolveScriptHash( hash );
     }
 
-    /** @since 0.1.2 */
+    /**
+     * @since 0.1.2
+     * @version 0.3.2 adds support for plutus v3
+     **/
     async resolveScriptHash( hash: string | Hash28 ): Promise<Script>
     {
         hash = hash.toString();
@@ -426,7 +429,7 @@ export class BlockfrostPluts
 
         if( cbor instanceof CborBytes )
         {
-            const scriptCbor = cbor.buffer;
+            const scriptCbor = cbor.bytes;
 
             const v1Hash = toHex(
                 blake2b_224(
@@ -439,20 +442,28 @@ export class BlockfrostPluts
                 )
             );
 
-            if( v1Hash === hash )
-            {
-                script = new Script(
-                    "PlutusScriptV1",
-                    scriptCbor
+            if( v1Hash === hash ) return Script.plutusV1(
+                scriptCbor
+            );
+
+            const v2Hash = toHex(
+                blake2b_224(
+                    new Uint8Array(
+                        [
+                            0x02,
+                            ...cborBytes
+                        ]
+                    )
                 )
-            }
-            else
-            {
-                script = new Script(
-                    "PlutusScriptV2",
-                    scriptCbor
-                )
-            }
+            );
+
+            if( v2Hash === hash ) return Script.plutusV2(
+                scriptCbor
+            );
+
+            return Script.plutusV3(
+                scriptCbor
+            );
         }
         else
         {
