@@ -166,7 +166,7 @@ export class BlockfrostPluts
                 "Content-Type": "application/cbor",
                 "project_id": this.projectId
             },
-            body: tx.toCbor().toBuffer().buffer
+            body: tx.toCbor().toBuffer().buffer as ArrayBuffer
         });
         if (!res.ok) throw new Error( res.statusText + await res.text() );
         return (tx as Tx).hash.toString();
