@@ -389,6 +389,55 @@ export class BlockfrostPluts
     }
 
     /**
+     * @since 0.4.1
+    **/
+    async assetAddresses( assetUnit: string, pagination?: PaginationOptions ): Promise<AddrStrAndQuantity[]>
+    {
+        const baseUrl = `${this.url}/assets/${assetUnit}/addresses`;
+        return this._addressesWithAssetQuery( baseUrl, pagination );
+    }
+
+    /**
+     * @since 0.4.1
+    **/
+    async addressesWithAsset( assetUnit: string, pagination?: PaginationOptions ): Promise<AddrStrAndQuantity[]>
+    {
+        const baseUrl = `${this.url}/assets/${assetUnit}/addresses`;
+        return this._addressesWithAssetQuery( baseUrl, pagination );
+    }
+
+    /**
+     * @since 0.4.1
+    **/
+    private async _addressesWithAssetQuery( baseUrl: string, pagination?: PaginationOptions ): Promise<AddrStrAndQuantity[]>
+    {
+        const explicitPagination = !!pagination;
+
+        pagination = explicitPagination ? {
+            ...defaultPaginationOpts,
+            ...pagination
+        } : { ...defaultPaginationOpts };
+
+        const countPerPage = pagination.count ?? DEFAULT_PAGINATION_COUNT;
+        let page = pagination.page ?? DEFAULT_PAGINATION_PAGE;
+
+        let _addrs: any[] = [];
+        
+        if( explicitPagination ) _addrs.push(
+            ...(await this.get(`${baseUrl}${paginationOptsToStr( pagination )}`))
+        );
+        else do {
+            _addrs.push(
+                ...(await this.get(`${baseUrl}${paginationOptsToStr( pagination )}`))
+            );
+            page++;
+            pagination.page = page;
+        } while( _addrs.length === (countPerPage * (page - 1)) );
+
+        return _addrs;
+    }
+
+    /**
      * @since 0.1.0
      * 
      * @version 0.3.0 adds default pagination and full query on missing pagination
@@ -475,4 +524,9 @@ export class BlockfrostPluts
 
         return script;
     }
+}
+
+export interface AddrStrAndQuantity {
+    address: AddressStr;
+    quantity: `${bigint}`;
 }
