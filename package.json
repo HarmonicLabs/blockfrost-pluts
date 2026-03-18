@@ -1,6 +1,6 @@
 {
   "name": "@harmoniclabs/blockfrost-pluts",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "@blockfrost/blockfrost-js extension based on plu-ts types",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -53,7 +53,7 @@
   },
   "homepage": "https://github.com/HarmonicLabs/plu-ts#readme",
   "dependencies": {
-    "@harmoniclabs/buildooor": "^0.2.0",
+    "@harmoniclabs/buildooor": "^0.2.6",
     "@harmoniclabs/cardano-costmodels-ts": "^1.4.0",
     "@harmoniclabs/crypto": "0.3.0",
     "@harmoniclabs/obj-utils": "^1.0.0",
