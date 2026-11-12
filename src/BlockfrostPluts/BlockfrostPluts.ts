@@ -200,6 +200,22 @@ export class BlockfrostPluts
         return await res.json();
     }
 
+    /** Paginate a Blockfrost list endpoint to completion. */
+    private async getAll<T>( path: string ): Promise<T[]>
+    {
+        const out: T[] = [];
+        const count = 100;
+        for( let page = 1; page <= 1000; page++ )
+        {
+            const sep = path.includes("?") ? "&" : "?";
+            const batch = await this.get(`${this.url}${path}${sep}count=${count}&page=${page}`) as unknown;
+            if( !Array.isArray(batch) ) return [ batch as T ];
+            out.push( ...(batch as T[]) );
+            if( batch.length < count ) break;
+        }
+        return out;
+    }
+
     /** @since 0.1.12 */
     getChainTip(): Promise<BlockInfos>
     {
@@ -220,6 +236,60 @@ export class BlockfrostPluts
     async epochsParameters( epoch_no: number ): Promise<ProtocolParameters>
     {
         return adaptProtocolParams( await this.get(`${this.url}/epochs/${epoch_no}/parameters`) )
+    }
+
+    /** Raw Blockfrost protocol-parameter JSON (the shape Gerolamo's ledger importer stores). */
+    epochsParametersRaw( epoch_no: number ): Promise<any>
+    {
+        return this.get(`${this.url}/epochs/${epoch_no}/parameters`);
+    }
+
+    /** Raw latest protocol-parameter JSON. */
+    epochsLatestParametersRaw(): Promise<any>
+    {
+        return this.get(`${this.url}/epochs/latest/parameters`);
+    }
+
+    /** Raw block JSON by hash. */
+    blocks( hash: string ): Promise<any>
+    {
+        return this.get(`${this.url}/blocks/${hash}`);
+    }
+
+    /** All addresses touched by a block. */
+    blocksAddressesAll( hash: string ): Promise<any[]>
+    {
+        return this.getAll<any>(`/blocks/${hash}/addresses`);
+    }
+
+    /** All stake entries for an epoch. */
+    epochsStakesAll( epoch_no: number ): Promise<any[]>
+    {
+        return this.getAll<any>(`/epochs/${epoch_no}/stakes`);
+    }
+
+    /** All block hashes for an epoch. */
+    epochsBlocksAll( epoch_no: number ): Promise<string[]>
+    {
+        return this.getAll<string>(`/epochs/${epoch_no}/blocks`);
+    }
+
+    /** All addresses controlled by a stake account. */
+    accountsAddressesAll( stake_address: string ): Promise<any[]>
+    {
+        return this.getAll<any>(`/accounts/${stake_address}/addresses`);
+    }
+
+    /** All UTxOs of an address (raw Blockfrost output objects). */
+    addressesUtxosAll( address: string ): Promise<any[]>
+    {
+        return this.getAll<any>(`/addresses/${address}/utxos`);
+    }
+
+    /** All registered pools. */
+    poolsAll(): Promise<any[]>
+    {
+        return this.getAll<any>(`/pools`);
     }
 
     /** @since 0.1.1 */
