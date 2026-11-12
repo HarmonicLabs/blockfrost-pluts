@@ -1,4 +1,4 @@
-export type CardanoNetwork = 'mainnet' | 'testnet' | 'preview' | 'preprod';
+export type CardanoNetwork = 'mainnet' | 'testnet' | 'preview' | 'preprod' | 'sanchonet';
 export type BlockfrostNetwork = CardanoNetwork | 'ipfs';
 
 export interface RateLimiterConfig {
@@ -34,6 +34,7 @@ type OptionCombination1 = {
 type OptionCombination2 = {
     projectId?: string;
     customBackend: string;
+    network?: CardanoNetwork;
 };
 type AdditionalOptions = {
     network?: CardanoNetwork;
@@ -45,4 +46,4 @@ type AdditionalOptions = {
     requestTimeout?: number;
     retrySettings?: RequiredRetryOptions;
 };
-export type BlockfrostOptions = OptionCombination1;
+export type BlockfrostOptions = (OptionCombination1 | OptionCombination2) & AdditionalOptions;

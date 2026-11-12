@@ -61,27 +61,32 @@ export type UTxOWithRefScriptHash = UTxO & { readonly refScriptHash?: Hash28 }
 export class BlockfrostPluts
     implements ITxRunnerProvider, ISubmitTx, IGetProtocolParameters
 {
-    readonly network: "mainnet" | "preview" | "preprod" | "sanchonet";
+    readonly network: "mainnet" | "preview" | "preprod" | "sanchonet" | "testnet";
     readonly url: string;
-    readonly projectId: string;
+    readonly projectId: string | undefined;
 
-    constructor({ projectId, customBackend }: BlockfrostOptions )
+    constructor({ projectId, customBackend, network: explicitNetwork }: BlockfrostOptions )
     {
-        if( typeof projectId !== "string" ) throw new Error("blockfrost projectId not a string");
-        const network = (
-            projectId.startsWith("mainnet") ? "mainnet" :
-            projectId.startsWith("preprod") ? "preprod" :
-            projectId.startsWith("preview") ? "preview" :
-            projectId.startsWith("sanchonet") ? "sanchonet" : ""
+        const inferredNetwork = (
+            projectId?.startsWith("mainnet") ? "mainnet" :
+            projectId?.startsWith("preprod") ? "preprod" :
+            projectId?.startsWith("preview") ? "preview" :
+            projectId?.startsWith("sanchonet") ? "sanchonet" :
+            projectId?.startsWith("testnet") ? "testnet" : ""
         );
-        if( network === "" ) throw new Error("invalid projectId");
+        const network = explicitNetwork ?? inferredNetwork;
+        if( !network ) throw new Error("blockfrost network not inferable; pass network or a projectId");
+        if( projectId !== undefined && typeof projectId !== "string" ) throw new Error("blockfrost projectId not a string");
+        if( customBackend !== undefined && typeof customBackend !== "string" ) throw new Error("blockfrost customBackend not a string");
 
         const url = customBackend ?? (
-            network === "mainnet" ? "https://cardano-mainnet.blockfrost.io/api/v0": 
-            network === "preprod" ? "https://cardano-preprod.blockfrost.io/api/v0": 
-            network === "preview" ? "https://cardano-preview.blockfrost.io/api/v0":
-            network === "sanchonet" ? "https://cardano-sanchonet.blockfrost.io/api/v0": ""
+            network === "mainnet" ? "https://cardano-mainnet.blockfrost.io/api/v0" :
+            network === "preprod" ? "https://cardano-preprod.blockfrost.io/api/v0" :
+            network === "preview" ? "https://cardano-preview.blockfrost.io/api/v0" :
+            network === "sanchonet" ? "https://cardano-sanchonet.blockfrost.io/api/v0" :
+            network === "testnet" ? "https://cardano-preprod.blockfrost.io/api/v0" : ""
         );
+        if( !url ) throw new Error("blockfrost backend URL missing");
 
         Object.defineProperties(
             this, {
@@ -115,9 +120,9 @@ export class BlockfrostPluts
             method: "POST",
             headers: {
                 "Content-Type": "application/cbor",
-                "project_id": this.projectId
+                ...(this.projectId ? { "project_id": this.projectId } : {})
             },
-            body: tx.toCbor().toBuffer().buffer
+            body: (tx.toCbor() as any).toBuffer().buffer
         });
         if (!res.ok) throw new Error( res.statusText + await res.text() );
         return (tx as Tx).hash.toString();
@@ -132,7 +137,7 @@ export class BlockfrostPluts
             headers: {
                 "Content-Type": "application/cbor",
                 "Accept": "application/json",
-                "project_id": this.projectId
+                ...(this.projectId ? { "project_id": this.projectId } : {})
             },
             body: tx.toCbor().toString()
         });
@@ -144,11 +149,27 @@ export class BlockfrostPluts
     {
         const res = await fetch(url, {
             headers: {
-                "project_id": this.projectId
+                ...(this.projectId ? { "project_id": this.projectId } : {})
             }
         });
         if (!res.ok) throw res.statusText + await res.text();
         return await res.json();
+    }
+
+    /** Paginate a Blockfrost list endpoint to completion. */
+    private async getAll<T>( path: string ): Promise<T[]>
+    {
+        const out: T[] = [];
+        const count = 100;
+        for( let page = 1; page <= 1000; page++ )
+        {
+            const sep = path.includes("?") ? "&" : "?";
+            const batch = await this.get(`${this.url}${path}${sep}count=${count}&page=${page}`) as unknown;
+            if( !Array.isArray(batch) ) return [ batch as T ];
+            out.push( ...(batch as T[]) );
+            if( batch.length < count ) break;
+        }
+        return out;
     }
 
     /** @since 0.1.12 */
@@ -173,6 +194,60 @@ export class BlockfrostPluts
         return adaptProtocolParams( await this.get(`${this.url}/epochs/${epoch_no}/parameters`) )
     }
 
+    /** Raw Blockfrost protocol-parameter JSON (the shape Gerolamo's ledger importer stores). */
+    epochsParametersRaw( epoch_no: number ): Promise<any>
+    {
+        return this.get(`${this.url}/epochs/${epoch_no}/parameters`);
+    }
+
+    /** Raw latest protocol-parameter JSON. */
+    epochsLatestParametersRaw(): Promise<any>
+    {
+        return this.get(`${this.url}/epochs/latest/parameters`);
+    }
+
+    /** Raw block JSON by hash. */
+    blocks( hash: string ): Promise<any>
+    {
+        return this.get(`${this.url}/blocks/${hash}`);
+    }
+
+    /** All addresses touched by a block. */
+    blocksAddressesAll( hash: string ): Promise<any[]>
+    {
+        return this.getAll<any>(`/blocks/${hash}/addresses`);
+    }
+
+    /** All stake entries for an epoch. */
+    epochsStakesAll( epoch_no: number ): Promise<any[]>
+    {
+        return this.getAll<any>(`/epochs/${epoch_no}/stakes`);
+    }
+
+    /** All block hashes for an epoch. */
+    epochsBlocksAll( epoch_no: number ): Promise<string[]>
+    {
+        return this.getAll<string>(`/epochs/${epoch_no}/blocks`);
+    }
+
+    /** All addresses controlled by a stake account. */
+    accountsAddressesAll( stake_address: string ): Promise<any[]>
+    {
+        return this.getAll<any>(`/accounts/${stake_address}/addresses`);
+    }
+
+    /** All UTxOs of an address (raw Blockfrost output objects). */
+    addressesUtxosAll( address: string ): Promise<any[]>
+    {
+        return this.getAll<any>(`/addresses/${address}/utxos`);
+    }
+
+    /** All registered pools. */
+    poolsAll(): Promise<any[]>
+    {
+        return this.getAll<any>(`/pools`);
+    }
+
     /** @since 0.1.1 */
     epochsLatestParameters(): Promise<ProtocolParameters>
     {
@@ -186,7 +261,7 @@ export class BlockfrostPluts
     }
     
     /** @since 0.1.0 */
-    async resolveUtxos(utxos: CanResolveToUTxO[]): Promise<UTxO[]>
+    async resolveUtxos(utxos: any[]): Promise<any[]>
     {
         const refs = utxos.map( u => {
             const [ id, idx ] = forceTxOutRefStr( u ).split("#");
@@ -239,7 +314,7 @@ export class BlockfrostPluts
     }
 
     /** @since 0.1.0 */
-    resolveDatumHashes( hashes: Hash32[] ): Promise<{ hash: string; datum: CanBeData; }[]>
+    resolveDatumHashes( hashes: any[] ): Promise<{ hash: string; datum: CanBeData; }[]>
     {
         return Promise.all(
             hashes.map( async h => {

@@ -7,6 +7,7 @@ export function mockCostModels(
 ): CostModels
 {
     if( !isObject( blockfrostCostModels ) ) return {};
+    const cm = blockfrostCostModels as any;
 
     const res: CostModels = {
         PlutusScriptV1: defaultV1Costs,
@@ -17,19 +18,19 @@ export function mockCostModels(
     if( hasOwn( blockfrostCostModels, "PlutusV1" ) )
     {
         if( raw && isCostModelsV1( raw.PlutusV1 ) ) res.PlutusScriptV1 = toCostModelV1( raw.PlutusV1 );
-        else res.PlutusScriptV1 = blockfrostCostModels.PlutusV1 = mockV1CostModel( blockfrostCostModels.PlutusV1 )
+        else res.PlutusScriptV1 = cm.PlutusV1 = mockV1CostModel( cm.PlutusV1 )
     }
 
     if( hasOwn( blockfrostCostModels, "PlutusV2" ) )
     {
         if( raw && isCostModelsV2( raw.PlutusV2 ) ) res.PlutusScriptV2 = toCostModelV2( raw.PlutusV2 );
-        else res.PlutusScriptV2 = blockfrostCostModels.PlutusV2 = mockV2CostModel( blockfrostCostModels.PlutusV2 )
+        else res.PlutusScriptV2 = cm.PlutusV2 = mockV2CostModel( cm.PlutusV2 )
     }
 
     if( hasOwn( blockfrostCostModels, "PlutusV3" ) )
     {
         if( raw && isCostModelsV3( raw.PlutusV3 ) ) res.PlutusScriptV3 = toCostModelV3( raw.PlutusV3 );
-        else res.PlutusScriptV3 = blockfrostCostModels.PlutusV3 = mockV3CostModel( blockfrostCostModels.PlutusV3 )
+        else res.PlutusScriptV3 = cm.PlutusV3 = mockV3CostModel( cm.PlutusV3 )
     }
 
     return res;
